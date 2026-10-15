@@ -1,0 +1,1851 @@
+<html lang="en">
+<head><script>HTMLElement.prototype.focus=SVGElement.prototype.focus=function(){};</script>
+  <meta charset="UTF-8">
+  <title>CAVE CLIMBER: RAGDOLL 3D</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      background-color: #050505;
+      color: #fae357;
+      font-family: 'Courier New', Courier, monospace;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #game-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      max-width: 540px;
+      max-height: 920px;
+      background: #000000;
+      box-shadow: 0 0 40px rgba(250, 227, 87, 0.25);
+      overflow: hidden;
+      border: 4px solid #fae357;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      image-rendering: pixelated;
+    }
+
+    /* UI Overlay */
+    .ui-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 16px;
+    }
+
+    .hud-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      font-weight: 900;
+      font-size: 15px;
+      letter-spacing: 1px;
+      text-shadow: 2px 2px 0px #000;
+      pointer-events: none;
+    }
+
+    .score-box {
+      background: #000;
+      border: 2px solid #fae357;
+      padding: 6px 10px;
+      box-shadow: 3px 3px 0 #fae357;
+    }
+
+    .warning-indicator {
+      position: absolute;
+      top: 64px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #fae357;
+      color: #000;
+      font-weight: 900;
+      font-size: 13px;
+      padding: 4px 10px;
+      border: 2px solid #000;
+      animation: blink 0.25s infinite alternate;
+      display: none;
+    }
+
+    @keyframes blink {
+      0% { opacity: 0; transform: translateX(-50%) scale(0.92); }
+      100% { opacity: 1; transform: translateX(-50%) scale(1.06); }
+    }
+
+    /* Mobile Touch Controls */
+    .touch-controls {
+      pointer-events: auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      width: 100%;
+      padding-bottom: 4px;
+    }
+
+    #joystick-zone {
+      width: 110px;
+      height: 110px;
+      border: 2px dashed #fae357;
+      border-radius: 50%;
+      position: relative;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #joystick-knob {
+      width: 42px;
+      height: 42px;
+      background: #fae357;
+      border: 2px solid #000;
+      border-radius: 50%;
+      position: absolute;
+      pointer-events: none;
+      box-shadow: 2px 2px 0 #000;
+    }
+
+    .action-buttons {
+      display: flex;
+       flex-direction: column;
+      gap: 10px;
+    }
+
+    .ctrl-btn {
+      background: #000;
+      color: #fae357;
+      border: 3px solid #fae357;
+      font-family: inherit;
+      font-weight: 900;
+      font-size: 14px;
+      padding: 14px 18px;
+      box-shadow: 3px 3px 0 #fae357;
+      cursor: pointer;
+      text-transform: uppercase;
+      active: translate(2px, 2px);
+    }
+
+    .ctrl-btn:active, .ctrl-btn.active {
+      background: #fae357;
+      color: #000;
+      transform: translate(2px, 2px);
+      box-shadow: 1px 1px 0 #fae357;
+    }
+
+    /* Modals / Screens */
+    .screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 24px;
+      text-align: center;
+      pointer-events: auto;
+      z-index: 10;
+    }
+
+    .title-huge {
+      font-size: 30px;
+      font-weight: 900;
+      line-height: 1.1;
+      margin-bottom: 8px;
+      background: #fae357;
+      color: #000;
+      padding: 8px 14px;
+      border: 3px solid #fae357;
+      transform: rotate(-2deg);
+      box-shadow: 4px 4px 0 #000, 6px 6px 0 #fae357;
+    }
+
+    .subtitle {
+      font-size: 13px;
+      font-weight: bold;
+      margin-bottom: 20px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #fae357;
+    }
+
+    .pixel-box {
+      border: 2px dashed #fae357;
+      padding: 14px;
+      margin-bottom: 22px;
+      background: #000000;
+      font-size: 12px;
+      line-height: 1.6;
+      text-align: left;
+    }
+
+    .btn {
+      background: #fae357;
+      color: #000;
+      font-family: inherit;
+      font-size: 18px;
+      font-weight: 900;
+      padding: 12px 28px;
+      border: 3px solid #000;
+      cursor: pointer;
+      box-shadow: 4px 4px 0 #fae357;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      outline: none;
+    }
+
+    .btn:active {
+      transform: translate(2px, 2px);
+      box-shadow: 2px 2px 0 #fae357;
+    }
+
+    .stats-label {
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+
+    .stats-val {
+      font-size: 26px;
+      font-weight: 900;
+      color: #fae357;
+      margin-bottom: 14px;
+    }
+
+    .controls-hint {
+      font-size: 11px;
+      opacity: 0.8;
+      margin-bottom: 6px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="game-canvas"></canvas>
+
+    <div class="ui-layer">
+      <div class="hud-top">
+        <div class="score-box" id="hud-height">ALT: 000m</div>
+        <div class="score-box" id="hud-state">STATE: READY</div>
+        <div class="score-box" id="hud-nuggets">★ 0</div>
+      </div>
+
+      <div id="rock-warning" class="warning-indicator">⚠ CAVERN TREMOR / ROCKFALL! ⚠</div>
+
+      <div>
+        <div class="controls-hint">WASD / ARROWS: Move 3D • SPACE: Jump • SHIFT/E: Ragdoll Ledge Grab</div>
+        <div class="touch-controls">
+          <div id="joystick-zone">
+            <div id="joystick-knob"></div>
+          </div>
+          <div class="action-buttons">
+            <button class="ctrl-btn" id="btn-grab">GRAB (HOLD)</button>
+            <button class="ctrl-btn" id="btn-jump">JUMP / VAULT</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- START SCREEN -->
+    <div id="start-screen" class="screen">
+      <div class="title-huge">RAGDOLL SPELUNKER</div>
+      <div class="subtitle">3D VERLET RAGDOLL CAVE PLATFORMER</div>
+      <div class="pixel-box">
+        • <b>3D PLATFORMING:</b> Navigate spiral stone pillars, bridges & crumbling ledges inside a 3D procedural cavern.<br>
+        • <b>ACTIVE RAGDOLL BODY:</b> Full multi-joint physics! Limbs flail, dangle, and collide with 3D rock walls.<br>
+        • <b>CLIMB & MANTLE:</b> Hold <b>SHIFT / E</b> (or GRAB button) in mid-air to reach & latch hands onto 3D ledges, then press <b>JUMP</b> to muscle-up!<br>
+        • <b>SURVIVE:</b> Escape the rising abyss and dodge 3D falling boulders!
+      </div>
+      <button class="btn" id="start-btn">ENTER CAVERN</button>
+    </div>
+
+    <!-- GAME OVER SCREEN -->
+    <div id="gameover-screen" class="screen" style="display: none;">
+      <div class="title-huge" style="background:#000; color:#fae357; border-color:#fae357;" id="death-reason">LOST IN THE DARK</div>
+      <div class="stats-label" style="margin-top: 15px;">MAX ALTITUDE CLIMBED</div>
+      <div class="stats-val" id="final-height">0m</div>
+      <div class="stats-label">GOLD ORE EXTRACTED</div>
+      <div class="stats-val" id="final-nuggets">0</div>
+      <div class="stats-label">BEST RECORD</div>
+      <div class="stats-val" id="best-height" style="font-size: 20px;">0m</div>
+      <button class="btn" id="restart-btn">RESPAWN CLIMBER</button>
+    </div>
+  </div>
+
+  <script>
+    /* =========================================================================
+       WEB AUDIO SYNTHESIZER
+       ========================================================================= */
+    class SoundFX {
+      constructor() {
+        this.ctx = null;
+      }
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioContext();
+        }
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+      }
+      playJump() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.exponentialRampToValueAtTime(520, now + 0.16);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.18);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.18);
+      }
+      playGrab() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(190, now);
+        osc.frequency.setValueAtTime(320, now + 0.04);
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.09);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.09);
+      }
+      playStep() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(95, now);
+        osc.frequency.exponentialRampToValueAtTime(40, now + 0.05);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.05);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.05);
+      }
+      playBoneHit() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(110, now);
+        osc.frequency.exponentialRampToValueAtTime(35, now + 0.2);
+        gain.gain.setValueAtTime(0.35, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.22);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.22);
+      }
+      playCollect() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(587.33, now);
+        osc.frequency.setValueAtTime(880, now + 0.07);
+        osc.frequency.setValueAtTime(1174.66, now + 0.14);
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.24);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.24);
+      }
+      playDeath() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(180, now);
+        osc.frequency.linearRampToValueAtTime(28, now + 0.65);
+        gain.gain.setValueAtTime(0.45, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.65);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.65);
+      }
+    }
+
+    const sfx = new SoundFX();
+
+    /* =========================================================================
+       CONSTANTS & GLOBALS
+       ========================================================================= */
+    const COLOR_YELLOW = 0xfae357;
+    const COLOR_BLACK = 0x050505;
+    const CAVE_RADIUS = 8.5;
+    const GRAVITY = -28.0;
+
+    const State = { MENU: 0, PLAYING: 1, GAMEOVER: 2 };
+    let gameState = State.MENU;
+    let scoreHeight = 0;
+    let maxClimbedY = 0;
+    let nuggetsCount = 0;
+    let bestScore = parseInt(localStorage.getItem('cave_ragdoll_best') || '0', 10);
+
+    /* =========================================================================
+       THREE.JS SCENE & DUO-TONE BAYER DITHER POST-PROCESSING
+       ========================================================================= */
+    const container = document.getElementById('game-container');
+    const canvas = document.getElementById('game-canvas');
+
+    const INTERNAL_W = 240;
+    const INTERNAL_H = 400;
+
+    const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: false, powerPreference: 'high-performance' });
+    renderer.setSize(container.clientWidth, container.clientHeight, false);
+    renderer.setPixelRatio(1);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(COLOR_BLACK);
+    scene.fog = new THREE.Fog(COLOR_BLACK, 14, 34);
+
+    // 3D Perspective Camera for true 3D depth platforming
+    const camera = new THREE.PerspectiveCamera(60, INTERNAL_W / INTERNAL_H, 0.5, 65);
+    camera.position.set(0, 4, 12);
+
+    // Dynamic lights attached to scene and player
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.30);
+    scene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
+    dirLight.position.set(8, 18, 12);
+    scene.add(dirLight);
+
+    const minerPointLight = new THREE.PointLight(0xffffff, 1.4, 18, 1.6);
+    scene.add(minerPointLight);
+
+    // Low-res Render Target for Crisp Pixel Dithering
+    const renderTarget = new THREE.WebGLRenderTarget(INTERNAL_W, INTERNAL_H, {
+      minFilter: THREE.NearestFilter,
+      magFilter: THREE.NearestFilter,
+      format: THREE.RGBAFormat
+    });
+
+    const postScene = new THREE.Scene();
+    const postCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+    const postMaterial = new THREE.ShaderMaterial({
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform sampler2D tDiffuse;
+        uniform vec2 uResolution;
+        varying vec2 vUv;
+
+        float bayer4(vec2 p) {
+          int x = int(mod(p.x, 4.0));
+          int y = int(mod(p.y, 4.0));
+          int index = x + y * 4;
+          if (index == 0) return 0.0625;
+          if (index == 1) return 0.5625;
+          if (index == 2) return 0.1875;
+          if (index == 3) return 0.6875;
+          if (index == 4) return 0.8125;
+          if (index == 5) return 0.3125;
+          if (index == 6) return 0.9375;
+          if (index == 7) return 0.4375;
+          if (index == 8) return 0.2500;
+          if (index == 9) return 0.7500;
+          if (index == 10) return 0.1250;
+          if (index == 11) return 0.6250;
+          if (index == 12) return 1.0000;
+          if (index == 13) return 0.5000;
+          if (index == 14) return 0.8750;
+          return 0.3750;
+        }
+
+        void main() {
+          vec4 col = texture2D(tDiffuse, vUv);
+          float lum = dot(col.rgb, vec3(0.299, 0.587, 0.114));
+          vec2 coord = vUv * uResolution;
+          float threshold = bayer4(coord);
+
+          vec3 yellow = vec3(0.980, 0.890, 0.341);
+          vec3 black = vec3(0.02, 0.02, 0.02);
+
+          if (lum > threshold * 0.82) {
+            gl_FragColor = vec4(yellow, 1.0);
+          } else {
+            gl_FragColor = vec4(black, 1.0);
+          }
+        }
+      `,
+      uniforms: {
+        tDiffuse: { value: null },
+        uResolution: { value: new THREE.Vector2(INTERNAL_W, INTERNAL_H) }
+      }
+    });
+
+    postScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), postMaterial));
+
+    /* =========================================================================
+       SHARED MATERIALS & HELPERS
+       ========================================================================= */
+    const rockMat = new THREE.MeshLambertMaterial({ color: 0x999999, flatShading: true });
+    const caveShellMat = new THREE.MeshLambertMaterial({ color: 0x454545, flatShading: true, side: THREE.BackSide });
+    const brightMat = new THREE.MeshLambertMaterial({ color: 0xffffff, flatShading: true });
+    const darkMat = new THREE.MeshLambertMaterial({ color: 0x222222, flatShading: true });
+    const wireMat = new THREE.LineBasicMaterial({ color: 0xffffff });
+    const darkWireMat = new THREE.LineBasicMaterial({ color: 0x111111 });
+
+    // Simple deterministic pseudo-noise for cave sculpting
+    function pseudoNoise(x, y, z) {
+      return Math.sin(x * 0.45 + y * 0.3) * Math.cos(z * 0.45 + y * 0.25) +
+             Math.sin(y * 0.8 - x * 0.6) * 0.4;
+    }
+
+    function getCaveCenter(y) {
+      return {
+        x: Math.sin(y * 0.07) * 2.2,
+        z: Math.cos(y * 0.05) * 1.8
+      };
+    }
+
+    /* =========================================================================
+       PROCEDURAL 3D CAVERN SYSTEM (WALL RINGS, PLATFORMS, STALACTITES, BRIDGES)
+       ========================================================================= */
+    const platforms = [];
+    const caveRings = [];
+    const nuggets = [];
+    const stalactites = [];
+    let highestGeneratedY = 0;
+    let spiralAngle = 0;
+
+    class Platform3D {
+      constructor(x, y, z, w, h, d, type = 'rock') {
+        this.x = x;
+        this.y = y;
+        this.z = z;
+        this.w = w;
+        this.h = h;
+        this.d = d;
+        this.type = type; // 'rock', 'crumbling', 'moving', 'pillar'
+        this.crumbleTimer = 0;
+        this.isSteppedOn = false;
+        this.destroyed = false;
+        this.baseX = x;
+        this.baseZ = z;
+        this.phase = Math.random() * Math.PI * 2;
+
+        const geo = new THREE.BoxGeometry(w, h, d);
+        // Sculpt vertices slightly for organic craggy 3D rock feel
+        const pos = geo.attributes.position;
+        for (let i = 0; i < pos.count; i++) {
+          const vx = pos.getX(i);
+          const vy = pos.getY(i);
+          const vz = pos.getZ(i);
+          // Keep top surface relatively flat for platforming
+          if (vy < 0) {
+            pos.setX(i, vx * (0.75 + Math.random() * 0.25));
+            pos.setZ(i, vz * (0.75 + Math.random() * 0.25));
+          }
+        }
+        geo.computeVertexNormals();
+
+        const mat = type === 'crumbling' ? darkMat : rockMat;
+        this.mesh = new THREE.Mesh(geo, mat);
+        this.mesh.position.set(x, y, z);
+        scene.add(this.mesh);
+
+        // High-contrast edge highlight so 3D depth reads clearly in dithered shader
+        const edges = new THREE.EdgesGeometry(geo);
+        this.lines = new THREE.LineSegments(edges, wireMat);
+        this.mesh.add(this.lines);
+
+        // Drop shadow indicator or support column for visual anchoring
+        if (type === 'pillar') {
+          const colGeo = new THREE.CylinderGeometry(w * 0.25, w * 0.35, 8, 6);
+          const colMesh = new THREE.Mesh(colGeo, darkMat);
+          colMesh.position.set(0, -4 - h / 2, 0);
+          this.mesh.add(colMesh);
+        }
+      }
+
+      update(dt, time) {
+        if (this.destroyed) return;
+        if (this.type === 'moving') {
+          const prevX = this.x;
+          this.x = this.baseX + Math.sin(time * 1.8 + this.phase) * 2.2;
+          this.dx = this.x - prevX;
+          this.mesh.position.x = this.x;
+        } else {
+          this.dx = 0;
+        }
+
+        if (this.type === 'crumbling' && this.isSteppedOn) {
+          this.crumbleTimer += dt;
+          this.mesh.position.x = this.x + (Math.random() - 0.5) * 0.18;
+          this.mesh.position.z = this.z + (Math.random() - 0.5) * 0.18;
+          if (this.crumbleTimer > 1.15) {
+            createDust(this.x, this.y, this.z, 12);
+            sfx.playBoneHit();
+            this.destroy();
+          }
+        }
+      }
+
+      destroy() {
+        this.destroyed = true;
+        scene.remove(this.mesh);
+      }
+    }
+
+    class Nugget3D {
+      constructor(x, y, z) {
+        this.x = x;
+        this.y = y;
+        this.z = z;
+        this.collected = false;
+        const geo = new THREE.OctahedronGeometry(0.42, 0);
+        this.mesh = new THREE.Mesh(geo, brightMat);
+        this.mesh.position.set(x, y, z);
+
+        const edges = new THREE.EdgesGeometry(geo);
+        this.mesh.add(new THREE.LineSegments(edges, darkWireMat));
+        scene.add(this.mesh);
+      }
+      update(dt) {
+        this.mesh.rotation.y += 3.0 * dt;
+        this.mesh.rotation.x += 1.5 * dt;
+      }
+      destroy() {
+        this.collected = true;
+        scene.remove(this.mesh);
+      }
+    }
+
+    function createCaveRingSlice(yStart, height) {
+      const radialSegs = 12;
+      const geo = new THREE.CylinderGeometry(CAVE_RADIUS, CAVE_RADIUS, height, radialSegs, 2, true);
+      const pos = geo.attributes.position;
+
+      for (let i = 0; i < pos.count; i++) {
+        let vx = pos.getX(i);
+        let vy = pos.getY(i);
+        let vz = pos.getZ(i);
+        const worldY = yStart + vy + height / 2;
+        const center = getCaveCenter(worldY);
+
+        const angle = Math.atan2(vz, vx);
+        const n = pseudoNoise(vx * 0.5, worldY * 0.4, vz * 0.5);
+        // Leave front camera view slightly wider so camera isn't blocked
+        const frontFactor = (vz > 2.0) ? 1.35 : 1.0;
+        const r = (CAVE_RADIUS + n * 2.2) * frontFactor;
+
+        pos.setX(i, center.x + Math.cos(angle) * r);
+        pos.setY(i, vy);
+        pos.setZ(i, center.z + Math.sin(angle) * r);
+      }
+      geo.computeVertexNormals();
+
+      const mesh = new THREE.Mesh(geo, caveShellMat);
+      mesh.position.set(0, yStart + height / 2, 0);
+
+      const wire = new THREE.LineSegments(new THREE.WireframeGeometry(geo), darkWireMat);
+      mesh.add(wire);
+
+      scene.add(mesh);
+      caveRings.push({ y: yStart, mesh });
+
+      // Add occasional hanging stalactites / rock ribs on the back/side walls
+      for (let s = 0; s < 2; s++) {
+        const ang = Math.PI + (Math.random() - 0.5) * 2.4; // Back hemisphere
+        const center = getCaveCenter(yStart);
+        const sx = center.x + Math.cos(ang) * (CAVE_RADIUS - 1.5);
+        const sz = center.z + Math.sin(ang) * (CAVE_RADIUS - 1.5);
+        const stalGeo = new THREE.ConeGeometry(0.6 + Math.random() * 0.5, 2.5 + Math.random() * 2, 5);
+        const stalMesh = new THREE.Mesh(stalGeo, darkMat);
+        stalMesh.rotation.x = Math.PI;
+        stalMesh.position.set(sx, yStart + Math.random() * height, sz);
+        scene.add(stalMesh);
+        stalactites.push({ y: yStart, mesh: stalMesh });
+      }
+    }
+
+    let lastPlatPos = { x: 0, y: 0, z: 0 };
+
+    function generateCaveUpTo(targetY) {
+      while (highestGeneratedY < targetY) {
+        const sliceH = 6.0;
+        createCaveRingSlice(highestGeneratedY, sliceH);
+
+        // Generate 2 to 3 3D platforms per vertical slice along a 3D winding path
+        const steps = 2;
+        for (let i = 0; i < steps; i++) {
+          const stepY = 2.1 + Math.random() * 1.1;
+          highestGeneratedY += stepY;
+
+          // Advance 3D path around the cavern interior
+          spiralAngle += (Math.random() > 0.35 ? 1 : -1) * (0.65 + Math.random() * 0.55);
+          const center = getCaveCenter(highestGeneratedY);
+          const radiusOffset = 1.5 + Math.random() * 2.8;
+
+          let px = center.x + Math.cos(spiralAngle) * radiusOffset;
+          let pz = center.z + Math.sin(spiralAngle) * (radiusOffset * 0.75);
+
+          // Ensure jump distance from last platform is reachable in 3D
+          const dx = px - lastPlatPos.x;
+          const dz = pz - lastPlatPos.z;
+          const distXZ = Math.sqrt(dx * dx + dz * dz);
+          const maxJumpXZ = 4.6;
+          if (distXZ > maxJumpXZ) {
+            px = lastPlatPos.x + (dx / distXZ) * maxJumpXZ;
+            pz = lastPlatPos.z + (dz / distXZ) * maxJumpXZ;
+          }
+
+          const w = 2.2 + Math.random() * 1.6;
+          const d = 2.2 + Math.random() * 1.6;
+          const h = 0.75;
+
+          let type = 'rock';
+          const roll = Math.random();
+          if (highestGeneratedY > 12 && roll < 0.22) type = 'crumbling';
+          else if (highestGeneratedY > 20 && roll < 0.38) type = 'moving';
+          else if (roll < 0.55) type = 'pillar';
+
+          const plat = new Platform3D(px, highestGeneratedY, pz, w, h, d, type);
+          platforms.push(plat);
+
+          // Secondary side-ledge or bridge in 3D space
+          if (Math.random() < 0.45) {
+            const sideAng = spiralAngle + Math.PI * 0.65;
+            const sx = center.x + Math.cos(sideAng) * 3.2;
+            const sz = center.z + Math.sin(sideAng) * 2.5;
+            const sidePlat = new Platform3D(sx, highestGeneratedY + 0.4, sz, 2.0, 0.6, 2.0, 'rock');
+            platforms.push(sidePlat);
+            if (Math.random() < 0.75) {
+              nuggets.push(new Nugget3D(sx, highestGeneratedY + 1.4, sz));
+            }
+          }
+
+          // Spawn Gold Ore Nugget
+          if (Math.random() < 0.55) {
+            nuggets.push(new Nugget3D(px, highestGeneratedY + 1.2, pz));
+          }
+
+          lastPlatPos = { x: px, y: highestGeneratedY, z: pz };
+        }
+      }
+    }
+
+    /* =========================================================================
+       3D VERLET ACTIVE-RAGDOLL CLIMBER
+       ========================================================================= */
+    class VerletNode {
+      constructor(x, y, z, radius = 0.15) {
+        this.pos = new THREE.Vector3(x, y, z);
+        this.oldPos = new THREE.Vector3(x, y, z);
+        this.radius = radius;
+        this.pinned = false;
+        this.pinPos = new THREE.Vector3();
+      }
+      pinTo(x, y, z) {
+        this.pinned = true;
+        this.pinPos.set(x, y, z);
+        this.pos.copy(this.pinPos);
+      }
+      unpin() {
+        this.pinned = false;
+      }
+    }
+
+    class RagdollClimber {
+      constructor() {
+        this.nodes = {};
+        this.constraints = [];
+        this.limbMeshes = [];
+        this.group = new THREE.Group();
+        scene.add(this.group);
+
+        // Controller core state
+        this.x = 0;
+        this.y = 2;
+        this.z = 0;
+        this.vx = 0;
+        this.vy = 0;
+        this.vz = 0;
+        this.facingAngle = 0;
+
+        this.isGrounded = false;
+        this.groundedPlatform = null;
+        this.isHanging = false;
+        this.hangLedge = null;
+        this.hangPoint = new THREE.Vector3();
+        this.ragdollStunTimer = 0; // > 0 means pure limp ragdoll after boulder impact!
+        this.walkCycle = 0;
+
+        this.buildRagdoll(0, 2, 0);
+      }
+
+      buildRagdoll(ox, oy, oz) {
+        // 10 Articulated 3D Ragdoll Nodes
+        this.nodes = {
+          pelvis:    new VerletNode(ox, oy, oz, 0.22),
+          chest:     new VerletNode(ox, oy + 0.45, oz, 0.24),
+          head:      new VerletNode(ox, oy + 0.85, oz, 0.25),
+          handL:     new VerletNode(ox - 0.45, oy + 0.35, oz, 0.12),
+          handR:     new VerletNode(ox + 0.45, oy + 0.35, oz, 0.12),
+          elbowL:    new VerletNode(ox - 0.25, oy + 0.4, oz - 0.1, 0.12),
+          elbowR:    new VerletNode(ox + 0.25, oy + 0.4, oz - 0.1, 0.12),
+          kneeL:     new VerletNode(ox - 0.16, oy - 0.35, oz + 0.1, 0.12),
+          kneeR:     new VerletNode(ox + 0.16, oy - 0.35, oz + 0.1, 0.12),
+          footL:     new VerletNode(ox - 0.16, oy - 0.72, oz, 0.14),
+          footR:     new VerletNode(ox + 0.16, oy - 0.72, oz, 0.14)
+        };
+
+        this.constraints = [];
+        const link = (a, b, dist, stiffness = 1.0) => {
+          this.constraints.push({ a: this.nodes[a], b: this.nodes[b], dist, stiffness });
+        };
+
+        // Skeleton distance constraints
+        link('pelvis', 'chest', 0.44, 1.0);
+        link('chest', 'head', 0.38, 1.0);
+        link('pelvis', 'head', 0.80, 0.5); // Spine support
+
+        // Left & Right 2-segment Arms
+        link('chest', 'elbowL', 0.32, 0.95);
+        link('elbowL', 'handL', 0.32, 0.95);
+        link('chest', 'elbowR', 0.32, 0.95);
+        link('elbowR', 'handR', 0.32, 0.95);
+
+        // Left & Right 2-segment Legs
+        link('pelvis', 'kneeL', 0.38, 0.95);
+        link('kneeL', 'footL', 0.38, 0.95);
+        link('pelvis', 'kneeR', 0.38, 0.95);
+        link('kneeR', 'footR', 0.38, 0.95);
+
+        // Build 3D Meshes for every bone & joint
+        while (this.group.children.length > 0) this.group.remove(this.group.children[0]);
+        this.limbMeshes = [];
+
+        const makeLimbBox = (aName, bName, thickness) => {
+          const geo = new THREE.BoxGeometry(thickness, 1, thickness);
+          const mesh = new THREE.Mesh(geo, brightMat);
+          const edges = new THREE.EdgesGeometry(geo);
+          mesh.add(new THREE.LineSegments(edges, darkWireMat));
+          this.group.add(mesh);
+          this.limbMeshes.push({ mesh, a: this.nodes[aName], b: this.nodes[bName] });
+        };
+
+        // Torso & Limbs
+        makeLimbBox('pelvis', 'chest', 0.34);
+        makeLimbBox('chest', 'elbowL', 0.14);
+        makeLimbBox('elbowL', 'handL', 0.13);
+        makeLimbBox('chest', 'elbowR', 0.14);
+        makeLimbBox('elbowR', 'handR', 0.13);
+        makeLimbBox('pelvis', 'kneeL', 0.16);
+        makeLimbBox('kneeL', 'footL', 0.14);
+        makeLimbBox('pelvis', 'kneeR', 0.16);
+        makeLimbBox('kneeR', 'footR', 0.14);
+
+        // Head & Miner Helmet Mesh
+        this.headGroup = new THREE.Group();
+        const headGeo = new THREE.BoxGeometry(0.36, 0.36, 0.36);
+        const headMesh = new THREE.Mesh(headGeo, brightMat);
+        headMesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(headGeo), darkWireMat));
+        this.headGroup.add(headMesh);
+
+        // Miner Helmet Brim & Lamp
+        const brimGeo = new THREE.BoxGeometry(0.48, 0.1, 0.48);
+        const brimMesh = new THREE.Mesh(brimGeo, brightMat);
+        brimMesh.position.y = 0.18;
+        this.headGroup.add(brimMesh);
+
+        const lampGeo = new THREE.BoxGeometry(0.16, 0.16, 0.2);
+        const lampMesh = new THREE.Mesh(lampGeo, brightMat);
+        lampMesh.position.set(0, 0.22, 0.24);
+        this.headGroup.add(lampMesh);
+
+        this.group.add(this.headGroup);
+      }
+
+      reset(x = 0, y = 2, z = 0) {
+        this.x = x;
+        this.y = y;
+        this.z = z;
+        this.vx = 0;
+        this.vy = 0;
+        this.vz = 0;
+        this.isGrounded = false;
+        this.groundedPlatform = null;
+        this.isHanging = false;
+        this.hangLedge = null;
+        this.ragdollStunTimer = 0;
+
+        for (let key in this.nodes) {
+          const n = this.nodes[key];
+          n.unpin();
+          n.pos.set(x, y, z);
+          n.oldPos.set(x, y, z);
+        }
+        this.nodes.chest.pos.set(x, y + 0.45, z);
+        this.nodes.head.pos.set(x, y + 0.85, z);
+      }
+
+      triggerRagdollImpact(impulseX, impulseY, impulseZ) {
+        this.isGrounded = false;
+        this.isHanging = false;
+        this.nodes.handL.unpin();
+        this.nodes.handR.unpin();
+        this.ragdollStunTimer = 1.1; // Go full limp ragdoll briefly!
+        this.vx = impulseX;
+        this.vy = impulseY;
+        this.vz = impulseZ;
+
+        // Scatter limb velocities for hilarious ragdoll tumble
+        for (let key in this.nodes) {
+          const n = this.nodes[key];
+          n.oldPos.x = n.pos.x - (impulseX + (Math.random() - 0.5) * 8) * 0.016;
+          n.oldPos.y = n.pos.y - (impulseY + (Math.random() - 0.5) * 8) * 0.016;
+          n.oldPos.z = n.pos.z - (impulseZ + (Math.random() - 0.5) * 8) * 0.016;
+        }
+      }
+
+      jump() {
+        if (this.isHanging) {
+          // Mantle / Vault up onto the ledge!
+          this.isHanging = false;
+          this.nodes.handL.unpin();
+          this.nodes.handR.unpin();
+          this.vy = 13.5;
+          // Push slightly toward the platform center
+          if (this.hangLedge) {
+            const dx = this.hangLedge.x - this.x;
+            const dz = this.hangLedge.z - this.z;
+            this.vx = dx * 2.2;
+            this.vz = dz * 2.2;
+          }
+          sfx.playJump();
+          createDust(this.x, this.y + 0.5, this.z, 8);
+          return;
+        }
+
+        if (this.isGrounded || this.ragdollStunTimer > 0) {
+          this.isGrounded = false;
+          this.groundedPlatform = null;
+          this.ragdollStunTimer = 0;
+          this.vy = 14.2;
+
+          // Upward surge on ragdoll chest/head/arms
+          this.nodes.head.pos.y += 0.25;
+          this.nodes.handL.pos.y += 0.4;
+          this.nodes.handR.pos.y += 0.4;
+          sfx.playJump();
+          createDust(this.x, this.y - 0.7, this.z, 8);
+        }
+      }
+
+      tryGrabLedge(wantsGrab) {
+        if (!wantsGrab) {
+          if (this.isHanging) {
+            this.isHanging = false;
+            this.nodes.handL.unpin();
+            this.nodes.handR.unpin();
+          }
+          return;
+        }
+
+        // Reach hands upward/forward when holding grab
+        const reachX = Math.sin(this.facingAngle) * 0.35;
+        const reachZ = Math.cos(this.facingAngle) * 0.35;
+        if (!this.isHanging) {
+          this.nodes.handL.pos.x += reachX * 0.3;
+          this.nodes.handL.pos.y += 0.18;
+          this.nodes.handL.pos.z += reachZ * 0.3;
+          this.nodes.handR.pos.x += reachX * 0.3;
+          this.nodes.handR.pos.y += 0.18;
+          this.nodes.handR.pos.z += reachZ * 0.3;
+        }
+
+        if (this.isGrounded || this.isHanging) return;
+
+        // Check nearby 3D platform edges for hand latch
+        for (let i = 0; i < platforms.length; i++) {
+          const p = platforms[i];
+          if (p.destroyed) continue;
+
+          const topY = p.y + p.h / 2;
+          // Is our chest/head near the top edge elevation?
+          if (Math.abs((this.y + 0.55) - topY) < 0.75 && this.vy < 4.0) {
+            // Find closest point on platform perimeter box in XZ
+            const halfW = p.w / 2;
+            const halfD = p.d / 2;
+            const clampedX = Math.max(p.x - halfW, Math.min(p.x + halfW, this.x));
+            const clampedZ = Math.max(p.z - halfD, Math.min(p.z + halfD, this.z));
+
+            const distSq = (this.x - clampedX) ** 2 + (this.z - clampedZ) ** 2;
+            if (distSq < 0.85 * 0.85) {
+              // Latch both ragdoll hands onto the 3D ledge!
+              this.isHanging = true;
+              this.hangLedge = p;
+              this.vx = 0;
+              this.vy = 0;
+              this.vz = 0;
+
+              const tangX = Math.cos(this.facingAngle) * 0.22;
+              const tangZ = -Math.sin(this.facingAngle) * 0.22;
+              this.nodes.handL.pinTo(clampedX - tangX, topY, clampedZ - tangZ);
+              this.nodes.handR.pinTo(clampedX + tangX, topY, clampedZ + tangZ);
+              this.hangPoint.set(clampedX, topY, clampedZ);
+
+              p.isSteppedOn = true;
+              sfx.playGrab();
+              createDust(clampedX, topY, clampedZ, 5);
+              break;
+            }
+          }
+        }
+      }
+
+      update(dt, inputX, inputZ, wantsGrab) {
+        if (this.ragdollStunTimer > 0) {
+          this.ragdollStunTimer -= dt;
+        }
+
+        // Update facing direction when moving
+        const moveMag = Math.hypot(inputX, inputZ);
+        if (moveMag > 0.1 && !this.isHanging) {
+          this.facingAngle = Math.atan2(inputX, inputZ);
+        }
+
+        this.tryGrabLedge(wantsGrab);
+
+        // 1. Core 3D Movement & Platform Physics
+        if (this.isHanging) {
+          if (!this.hangLedge || this.hangLedge.destroyed) {
+            this.isHanging = false;
+            this.nodes.handL.unpin();
+            this.nodes.handR.unpin();
+          } else {
+            // Follow moving platform while dangling
+            if (this.hangLedge.dx) {
+              this.hangPoint.x += this.hangLedge.dx;
+              this.nodes.handL.pinPos.x += this.hangLedge.dx;
+              this.nodes.handR.pinPos.x += this.hangLedge.dx;
+            }
+            // Pelvis dangles beneath pinned hands with user swing control
+            const targetX = this.hangPoint.x + inputX * 0.35;
+            const targetY = this.hangPoint.y - 0.72;
+            const targetZ = this.hangPoint.z + inputZ * 0.35;
+            this.x += (targetX - this.x) * 10 * dt;
+            this.y += (targetY - this.y) * 10 * dt;
+            this.z += (targetZ - this.z) * 10 * dt;
+          }
+        } else {
+          // Normal or stunned airborne/grounded physics
+          const moveSpeed = this.isGrounded ? 7.2 : 5.6;
+          if (this.ragdollStunTimer <= 0) {
+            const targetVx = inputX * moveSpeed;
+            const targetVz = inputZ * moveSpeed;
+            const accel = this.isGrounded ? 14.0 : 6.5;
+            this.vx += (targetVx - this.vx) * accel * dt;
+            this.vz += (targetVz - this.vz) * accel * dt;
+          } else {
+            // Air drag when stunned
+            this.vx *= 0.98;
+            this.vz *= 0.98;
+          }
+
+          if (this.isGrounded && this.groundedPlatform) {
+            if (this.groundedPlatform.destroyed) {
+              this.isGrounded = false;
+              this.groundedPlatform = null;
+            } else {
+              if (this.groundedPlatform.dx) {
+                this.x += this.groundedPlatform.dx;
+              }
+              // Check if walked off platform 3D bounds
+              const p = this.groundedPlatform;
+              const margin = 0.32;
+              if (
+                Math.abs(this.x - p.x) > p.w / 2 + margin ||
+                Math.abs(this.z - p.z) > p.d / 2 + margin
+              ) {
+                this.isGrounded = false;
+                this.groundedPlatform = null;
+              }
+            }
+          }
+
+          if (!this.isGrounded) {
+            this.vy += GRAVITY * dt;
+          }
+
+          const prevY = this.y;
+          this.x += this.vx * dt;
+          this.y += this.vy * dt;
+          this.z += this.vz * dt;
+
+          // Keep inside cylindrical 3D cavern walls
+          const center = getCaveCenter(this.y);
+          const dxCave = this.x - center.x;
+          const dzCave = this.z - center.z;
+          const distCave = Math.hypot(dxCave, dzCave);
+          const maxR = CAVE_RADIUS - 1.4;
+          if (distCave > maxR) {
+            const nx = dxCave / distCave;
+            const nz = dzCave / distCave;
+            this.x = center.x + nx * maxR;
+            this.z = center.z + nz * maxR;
+            this.vx *= -0.4;
+            this.vz *= -0.4;
+          }
+
+          // 3D Platform Collisions (Top landing & solid side/bottom bumps)
+          const footOffset = 0.72;
+          for (let i = 0; i < platforms.length; i++) {
+            const p = platforms[i];
+            if (p.destroyed) continue;
+
+            const halfW = p.w / 2 + 0.25;
+            const halfD = p.d / 2 + 0.25;
+            const topY = p.y + p.h / 2;
+            const botY = p.y - p.h / 2;
+
+            if (Math.abs(this.x - p.x) < halfW && Math.abs(this.z - p.z) < halfD) {
+              // Landing on top
+              if (this.vy <= 0 && (prevY - footOffset) >= topY - 0.45 && (this.y - footOffset) <= topY) {
+                this.y = topY + footOffset;
+                this.vy = 0;
+                this.isGrounded = true;
+                this.groundedPlatform = p;
+                p.isSteppedOn = true;
+                sfx.playStep();
+                createDust(this.x, topY, this.z, 5);
+                break;
+              }
+              // Head bump on underside
+              if (this.vy > 0 && (prevY + 0.85) <= botY + 0.3 && (this.y + 0.85) >= botY) {
+                this.y = botY - 0.85;
+                this.vy = -this.vy * 0.3;
+                sfx.playBoneHit();
+              }
+            }
+          }
+        }
+
+        // 2. Step 3D Verlet Ragdoll Nodes & Active Balance Forces
+        const damping = 0.90;
+        for (let key in this.nodes) {
+          const n = this.nodes[key];
+          if (n.pinned) {
+            n.pos.copy(n.pinPos);
+            continue;
+          }
+          const vx = (n.pos.x - n.oldPos.x) * damping;
+          const vy = (n.pos.y - n.oldPos.y) * damping;
+          const vz = (n.pos.z - n.oldPos.z) * damping;
+
+          n.oldPos.copy(n.pos);
+          n.pos.x += vx;
+          n.pos.y += vy + GRAVITY * dt * dt;
+          n.pos.z += vz;
+        }
+
+        // Active Ragdoll Posture & Procedural Limb Animation
+        if (this.ragdollStunTimer <= 0) {
+          // Anchor pelvis to controller position
+          this.nodes.pelvis.pos.lerp(new THREE.Vector3(this.x, this.y, this.z), 0.75);
+
+          if (!this.isHanging) {
+            // Upright posture force on chest & head (leans into movement velocity!)
+            const leanX = this.vx * 0.035;
+            const leanZ = this.vz * 0.035;
+            this.nodes.chest.pos.x += (this.x + leanX - this.nodes.chest.pos.x) * 0.45;
+            this.nodes.chest.pos.y += (this.y + 0.44 - this.nodes.chest.pos.y) * 0.55;
+            this.nodes.chest.pos.z += (this.z + leanZ - this.nodes.chest.pos.z) * 0.45;
+
+            this.nodes.head.pos.x += (this.x + leanX * 1.6 - this.nodes.head.pos.x) * 0.4;
+            this.nodes.head.pos.y += (this.y + 0.84 - this.nodes.head.pos.y) * 0.55;
+            this.nodes.head.pos.z += (this.z + leanZ * 1.6 - this.nodes.head.pos.z) * 0.4;
+
+            // Procedural 3D Walk / Run Limb Swing
+            const rightX = Math.cos(this.facingAngle);
+            const rightZ = -Math.sin(this.facingAngle);
+            const fwdX = Math.sin(this.facingAngle);
+            const fwdZ = Math.cos(this.facingAngle);
+
+            if (this.isGrounded && moveMag > 0.1) {
+              const prevCycle = this.walkCycle;
+              this.walkCycle += dt * 13.0 * moveMag;
+              if (Math.floor(this.walkCycle / Math.PI) !== Math.floor(prevCycle / Math.PI)) {
+                sfx.playStep();
+              }
+              const swing = Math.sin(this.walkCycle) * 0.34;
+              const liftL = Math.max(0, Math.cos(this.walkCycle)) * 0.22;
+              const liftR = Math.max(0, -Math.cos(this.walkCycle)) * 0.22;
+
+              // Target feet positions
+              this.nodes.footL.pos.lerp(new THREE.Vector3(
+                this.x - rightX * 0.16 + fwdX * swing,
+                this.y - 0.72 + liftL,
+                this.z - rightZ * 0.16 + fwdZ * swing
+              ), 0.5);
+
+              this.nodes.footR.pos.lerp(new THREE.Vector3(
+                this.x + rightX * 0.16 - fwdX * swing,
+                this.y - 0.72 + liftR,
+                this.z + rightZ * 0.16 - fwdZ * swing
+              ), 0.5);
+
+              // Counter-swing arms
+              this.nodes.handL.pos.lerp(new THREE.Vector3(
+                this.x - rightX * 0.34 - fwdX * swing * 0.8,
+                this.y + 0.15,
+                this.z - rightZ * 0.34 - fwdZ * swing * 0.8
+              ), 0.3);
+
+              this.nodes.handR.pos.lerp(new THREE.Vector3(
+                this.x + rightX * 0.34 + fwdX * swing * 0.8,
+                this.y + 0.15,
+                this.z + rightZ * 0.34 + fwdZ * swing * 0.8
+              ), 0.3);
+            } else if (this.isGrounded) {
+              // Idle planted feet
+              this.nodes.footL.pos.lerp(new THREE.Vector3(this.x - rightX * 0.16, this.y - 0.72, this.z - rightZ * 0.16), 0.4);
+              this.nodes.footR.pos.lerp(new THREE.Vector3(this.x + rightX * 0.16, this.y - 0.72, this.z + rightZ * 0.16), 0.4);
+            } else {
+              // Mid-air flailing limbs!
+              const flail = Math.sin(performance.now() * 0.018) * 0.22;
+              this.nodes.handL.pos.x -= rightX * 0.06;
+              this.nodes.handR.pos.x += rightX * 0.06;
+              this.nodes.footL.pos.z += flail * 0.15;
+              this.nodes.footR.pos.z -= flail * 0.15;
+            }
+          }
+        } else {
+          // Stunned limp ragdoll: controller tracks pelvis
+          this.x = this.nodes.pelvis.pos.x;
+          this.y = this.nodes.pelvis.pos.y;
+          this.z = this.nodes.pelvis.pos.z;
+        }
+
+        // 3. Solve Ragdoll Bone Distance Constraints & 3D Platform Node Collisions
+        const iterations = 5;
+        for (let iter = 0; iter < iterations; iter++) {
+          for (let i = 0; i < this.constraints.length; i++) {
+            const c = this.constraints[i];
+            const dx = c.b.pos.x - c.a.pos.x;
+            const dy = c.b.pos.y - c.a.pos.y;
+            const dz = c.b.pos.z - c.a.pos.z;
+            const len = Math.sqrt(dx * dx + dy * dy + dz * dz) || 0.0001;
+            const diff = ((len - c.dist) / len) * 0.5 * c.stiffness;
+
+            if (!c.a.pinned) {
+              c.a.pos.x += dx * diff;
+              c.a.pos.y += dy * diff;
+              c.a.pos.z += dz * diff;
+            }
+            if (!c.b.pinned) {
+              c.b.pos.x -= dx * diff;
+              c.b.pos.y -= dy * diff;
+              c.b.pos.z -= dz * diff;
+            }
+          }
+
+          // Collide individual ragdoll joints with nearby 3D platforms so limbs rest on rock surfaces
+          for (let key in this.nodes) {
+            const n = this.nodes[key];
+            if (n.pinned) continue;
+            for (let i = 0; i < platforms.length; i++) {
+              const p = platforms[i];
+              if (p.destroyed || Math.abs(n.pos.y - p.y) > 1.5) continue;
+              const topY = p.y + p.h / 2;
+              if (
+                Math.abs(n.pos.x - p.x) < p.w / 2 &&
+                Math.abs(n.pos.z - p.z) < p.d / 2 &&
+                n.pos.y - n.radius < topY &&
+                n.pos.y > p.y
+              ) {
+                n.pos.y = topY + n.radius;
+              }
+            }
+          }
+        }
+
+        this.updateMeshes();
+      }
+
+      updateMeshes() {
+        const upVec = new THREE.Vector3(0, 1, 0);
+        const dirVec = new THREE.Vector3();
+
+        for (let i = 0; i < this.limbMeshes.length; i++) {
+          const item = this.limbMeshes[i];
+          const pA = item.a.pos;
+          const pB = item.b.pos;
+
+          item.mesh.position.copy(pA).add(pB).multiplyScalar(0.5);
+          dirVec.subVectors(pB, pA);
+          const len = dirVec.length();
+          item.mesh.scale.set(1, Math.max(0.05, len), 1);
+          if (len > 0.001) {
+            item.mesh.quaternion.setFromUnitVectors(upVec, dirVec.normalize());
+          }
+        }
+
+        // Position & orient head
+        this.headGroup.position.copy(this.nodes.head.pos);
+        dirVec.subVectors(this.nodes.head.pos, this.nodes.chest.pos).normalize();
+        this.headGroup.rotation.set(
+          -dirVec.z * 0.5,
+          this.facingAngle,
+          dirVec.x * 0.5
+        );
+
+        // Update dynamic miner headlamp light
+        minerPointLight.position.set(
+          this.nodes.head.pos.x,
+          this.nodes.head.pos.y + 0.5,
+          this.nodes.head.pos.z + 1.2
+        );
+      }
+    }
+
+    const player = new RagdollClimber();
+
+    /* =========================================================================
+       3D FALLING BOULDERS
+       ========================================================================= */
+    const rocks = [];
+    let rockTimer = 0;
+    let nextRockTime = 2.8;
+    const warningIndicator = document.getElementById('rock-warning');
+
+    class Boulder3D {
+      constructor(x, y, z, size) {
+        this.x = x;
+        this.y = y;
+        this.z = z;
+        this.size = size;
+        this.vx = (Math.random() - 0.5) * 4;
+        this.vy = -4 - Math.random() * 4;
+        this.vz = (Math.random() - 0.5) * 4;
+        this.rotSpeed = new THREE.Vector3(
+          (Math.random() - 0.5) * 7,
+          (Math.random() - 0.5) * 7,
+          (Math.random() - 0.5) * 7
+        );
+        this.destroyed = false;
+
+        const geo = new THREE.DodecahedronGeometry(size, 0);
+        this.mesh = new THREE.Mesh(geo, brightMat);
+        this.mesh.position.set(x, y, z);
+        this.mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), darkWireMat));
+        scene.add(this.mesh);
+      }
+
+      update(dt) {
+        this.vy += GRAVITY * 0.65 * dt;
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+        this.z += this.vz * dt;
+
+        this.mesh.rotation.x += this.rotSpeed.x * dt;
+        this.mesh.rotation.y += this.rotSpeed.y * dt;
+        this.mesh.rotation.z += this.rotSpeed.z * dt;
+        this.mesh.position.set(this.x, this.y, this.z);
+
+        // Bounce off 3D platforms
+        for (let i = 0; i < platforms.length; i++) {
+          const p = platforms[i];
+          if (p.destroyed) continue;
+          if (
+            Math.abs(this.x - p.x) < p.w / 2 + this.size &&
+            Math.abs(this.z - p.z) < p.d / 2 + this.size &&
+            Math.abs(this.y - p.y) < p.h / 2 + this.size
+          ) {
+            this.vy = Math.abs(this.vy) * 0.55;
+            this.vx += (this.x - p.x) * 2.5;
+            this.vz += (this.z - p.z) * 2.5;
+            createDust(this.x, this.y, this.z, 6);
+            sfx.playBoneHit();
+            if (p.type === 'crumbling') p.destroy();
+            break;
+          }
+        }
+      }
+
+      destroy() {
+        this.destroyed = true;
+        scene.remove(this.mesh);
+      }
+    }
+
+    function updateRockSpawning(dt) {
+      rockTimer += dt;
+      if (rockTimer > nextRockTime - 0.75) {
+        warningIndicator.style.display = 'block';
+      } else {
+        warningIndicator.style.display = 'none';
+      }
+
+      if (rockTimer >= nextRockTime) {
+        rockTimer = 0;
+        const difficulty = Math.min(scoreHeight / 160, 1.0);
+        nextRockTime = 2.6 - difficulty * 1.1 + Math.random() * 0.9;
+
+        const center = getCaveCenter(player.y + 14);
+        const rx = center.x + (Math.random() - 0.5) * 7.5;
+        const rz = center.z + (Math.random() - 0.5) * 6.5;
+        const rSize = 0.5 + Math.random() * 0.4;
+        rocks.push(new Boulder3D(rx, player.y + 15, rz, rSize));
+      }
+    }
+
+    /* =========================================================================
+       3D PIXEL DUST PARTICLES
+       ========================================================================= */
+    const dustParticles = [];
+    const particleGeo = new THREE.BoxGeometry(0.15, 0.15, 0.15);
+
+    function createDust(x, y, z, count = 6) {
+      for (let i = 0; i < count; i++) {
+        const p = new THREE.Mesh(particleGeo, brightMat);
+        p.position.set(x, y, z);
+        scene.add(p);
+        dustParticles.push({
+          mesh: p,
+          vx: (Math.random() - 0.5) * 5,
+          vy: Math.random() * 4 + 1,
+          vz: (Math.random() - 0.5) * 5,
+          life: 0.35 + Math.random() * 0.25
+        });
+      }
+    }
+
+    function updateDust(dt) {
+      for (let i = dustParticles.length - 1; i >= 0; i--) {
+        const p = dustParticles[i];
+        p.life -= dt;
+        p.mesh.position.x += p.vx * dt;
+        p.mesh.position.y += p.vy * dt;
+        p.mesh.position.z += p.vz * dt;
+        p.mesh.scale.multiplyScalar(0.91);
+        if (p.life <= 0) {
+          scene.remove(p.mesh);
+          dustParticles.splice(i, 1);
+        }
+      }
+    }
+
+    /* =========================================================================
+       KEYBOARD & TOUCH JOYSTICK INPUT
+       ========================================================================= */
+    const keys = {};
+    let touchInput = { x: 0, z: 0 };
+    let touchGrab = false;
+
+    window.addEventListener('keydown', (e) => {
+      keys[e.code] = true;
+      if (gameState === State.PLAYING) {
+        sfx.init();
+        if (e.code === 'Space') {
+          e.preventDefault();
+          player.jump();
+        }
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      keys[e.code] = false;
+    });
+
+    // Virtual 3D Joystick
+    const joyZone = document.getElementById('joystick-zone');
+    const joyKnob = document.getElementById('joystick-knob');
+    let joyActive = false;
+    let joyOrigin = { x: 0, y: 0 };
+    const JOY_MAX = 36;
+
+    function handleJoyStart(e) {
+      sfx.init();
+      joyActive = true;
+      const rect = joyZone.getBoundingClientRect();
+      joyOrigin = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+      handleJoyMove(e);
+    }
+
+    function handleJoyMove(e) {
+      if (!joyActive) return;
+      const touch = e.touches ? e.touches[0] : e;
+      const dx = touch.clientX - joyOrigin.x;
+      const dy = touch.clientY - joyOrigin.y;
+      const dist = Math.min(Math.hypot(dx, dy), JOY_MAX);
+      const ang = Math.atan2(dy, dx);
+
+      const kx = Math.cos(ang) * dist;
+      const ky = Math.sin(ang) * dist;
+      joyKnob.style.transform = `translate(${kx}px, ${ky}px)`;
+
+      touchInput.x = kx / JOY_MAX;
+      touchInput.z = ky / JOY_MAX;
+    }
+
+    function handleJoyEnd() {
+      joyActive = false;
+      joyKnob.style.transform = `translate(0px, 0px)`;
+      touchInput.x = 0;
+      touchInput.z = 0;
+    }
+
+    joyZone.addEventListener('mousedown', handleJoyStart);
+    window.addEventListener('mousemove', handleJoyMove);
+    window.addEventListener('mouseup', handleJoyEnd);
+    joyZone.addEventListener('touchstart', (e) => { e.preventDefault(); handleJoyStart(e); }, { passive: false });
+    joyZone.addEventListener('touchmove', (e) => { e.preventDefault(); handleJoyMove(e); }, { passive: false });
+    joyZone.addEventListener('touchend', handleJoyEnd);
+
+    // Touch Action Buttons
+    const btnJump = document.getElementById('btn-jump');
+    const btnGrab = document.getElementById('btn-grab');
+
+    btnJump.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      sfx.init();
+      if (gameState === State.PLAYING) player.jump();
+    });
+
+    btnGrab.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      sfx.init();
+      touchGrab = true;
+      btnGrab.classList.add('active');
+    });
+
+    window.addEventListener('pointerup', () => {
+      touchGrab = false;
+      btnGrab.classList.remove('active');
+    });
+
+    function getCombinedInput() {
+      let ix = touchInput.x;
+      let iz = touchInput.z;
+      if (keys['KeyA'] || keys['ArrowLeft']) ix -= 1;
+      if (keys['KeyD'] || keys['ArrowRight']) ix += 1;
+      if (keys['KeyW'] || keys['ArrowUp']) iz -= 1;
+      if (keys['KeyS'] || keys['ArrowDown']) iz += 1;
+
+      const mag = Math.hypot(ix, iz);
+      if (mag > 1) {
+        ix /= mag;
+        iz /= mag;
+      }
+      const grab = touchGrab || keys['ShiftLeft'] || keys['ShiftRight'] || keys['KeyE'];
+      return { ix, iz, grab };
+    }
+
+    /* =========================================================================
+       GAME LIFECYCLE & STATE MANAGEMENT
+       ========================================================================= */
+    let abyssY = -5;
+
+    function resetGame() {
+      for (let r of rocks) r.destroy();
+      rocks.length = 0;
+
+      for (let p of dustParticles) scene.remove(p.mesh);
+      dustParticles.length = 0;
+
+      for (let pl of platforms) pl.destroy();
+      platforms.length = 0;
+
+      for (let n of nuggets) n.destroy();
+      nuggets.length = 0;
+
+      for (let cr of caveRings) scene.remove(cr.mesh);
+      caveRings.length = 0;
+
+      for (let st of stalactites) scene.remove(st.mesh);
+      stalactites.length = 0;
+
+      highestGeneratedY = 0;
+      spiralAngle = 0;
+
+      // Starting wide cavern floor
+      const startFloor = new Platform3D(0, 0, 0, 6.5, 1.2, 6.5, 'rock');
+      platforms.push(startFloor);
+      lastPlatPos = { x: 0, y: 0, z: 0 };
+
+      generateCaveUpTo(30);
+
+      player.reset(0, 2.0, 0);
+      camera.position.set(0, 4.5, 10.5);
+      abyssY = -6.5;
+
+      scoreHeight = 0;
+      maxClimbedY = 0;
+      nuggetsCount = 0;
+      rockTimer = 0;
+      nextRockTime = 2.8;
+
+      updateHUD();
+      warningIndicator.style.display = 'none';
+    }
+
+    function triggerGameOver(reason = "SWALLOWED BY THE ABYSS") {
+      if (gameState === State.GAMEOVER) return;
+      gameState = State.GAMEOVER;
+      sfx.playDeath();
+      createDust(player.x, player.y, player.z, 22);
+
+      if (scoreHeight > bestScore) {
+        bestScore = scoreHeight;
+        localStorage.setItem('cave_ragdoll_best', bestScore.toString());
+      }
+
+      document.getElementById('death-reason').textContent = reason;
+      document.getElementById('final-height').textContent = `${scoreHeight}m`;
+      document.getElementById('final-nuggets').textContent = `${nuggetsCount}`;
+      document.getElementById('best-height').textContent = `${bestScore}m`;
+      document.getElementById('gameover-screen').style.display = 'flex';
+      warningIndicator.style.display = 'none';
+    }
+
+    function updateHUD() {
+      document.getElementById('hud-height').textContent = `ALT: ${scoreHeight.toString().padStart(3, '0')}m`;
+      document.getElementById('hud-nuggets').textContent = `★ ${nuggetsCount}`;
+
+      let stText = 'AIRBORNE';
+      if (player.ragdollStunTimer > 0) stText = 'RAGDOLL!';
+      else if (player.isHanging) stText = 'HANGING!';
+      else if (player.isGrounded) stText = 'GROUNDED';
+      document.getElementById('hud-state').textContent = stText;
+    }
+
+    document.getElementById('start-btn').addEventListener('click', () => {
+      sfx.init();
+      document.getElementById('start-screen').style.display = 'none';
+      resetGame();
+      gameState = State.PLAYING;
+    });
+
+    document.getElementById('restart-btn').addEventListener('click', () => {
+      sfx.init();
+      document.getElementById('gameover-screen').style.display = 'none';
+      resetGame();
+      gameState = State.PLAYING;
+    });
+
+    /* =========================================================================
+       MAIN GAME LOOP
+       ========================================================================= */
+    let lastTime = performance.now();
+
+    function animate(currentTime) {
+      requestAnimationFrame(animate);
+
+      let dt = (currentTime - lastTime) / 1000.0;
+      lastTime = currentTime;
+      if (dt > 0.05) dt = 0.05;
+
+      const elapsed = currentTime * 0.001;
+
+      if (gameState === State.PLAYING) {
+        const { ix, iz, grab } = getCombinedInput();
+
+        // Update 3D Platforms
+        for (let i = 0; i < platforms.length; i++) {
+          platforms[i].update(dt, elapsed);
+        }
+
+        // Update 3D Active Ragdoll Player
+        player.update(dt, ix, iz, grab);
+
+        // Update Altitude Score
+        if (player.y > maxClimbedY) {
+          maxClimbedY = player.y;
+          scoreHeight = Math.floor(maxClimbedY * 2.0);
+        }
+        updateHUD();
+
+        // Rising Abyss Floor
+        abyssY = Math.max(abyssY + dt * 0.85, maxClimbedY - 9.5);
+        if (player.y < abyssY) {
+          triggerGameOver("SWALLOWED BY THE ABYSS!");
+        }
+
+        // Smooth 3D Camera Tracking (follows player X, Y, Z with look-ahead)
+        const targetCamX = player.x * 0.55;
+        const targetCamY = Math.max(abyssY + 6.5, player.y + 2.4);
+        const targetCamZ = player.z + 9.2;
+
+        camera.position.x += (targetCamX - camera.position.x) * 4.5 * dt;
+        camera.position.y += (targetCamY - camera.position.y) * 5.0 * dt;
+        camera.position.z += (targetCamZ - camera.position.z) * 4.5 * dt;
+        camera.lookAt(player.x * 0.7, player.y + 0.6, player.z);
+
+        // Infinite Procedural 3D Cavern Generation Upwards
+        if (camera.position.y + 22 > highestGeneratedY) {
+          generateCaveUpTo(camera.position.y + 28);
+        }
+
+        // Collect 3D Gold Nuggets
+        for (let i = nuggets.length - 1; i >= 0; i--) {
+          const n = nuggets[i];
+          if (n.collected) continue;
+          n.update(dt);
+          const distSq =
+            (player.x - n.x) ** 2 +
+            (player.y - n.y) ** 2 +
+            (player.z - n.z) ** 2;
+          if (distSq < 1.1 * 1.1) {
+            n.destroy();
+            nuggetsCount++;
+            sfx.playCollect();
+            createDust(n.x, n.y, n.z, 10);
+          }
+        }
+
+        // Falling 3D Boulders & Ragdoll Impact
+        updateRockSpawning(dt);
+        for (let i = rocks.length - 1; i >= 0; i--) {
+          const r = rocks[i];
+          r.update(dt);
+
+          // Check collision against ragdoll chest/head/pelvis
+          const distSq =
+            (player.nodes.chest.pos.x - r.x) ** 2 +
+            (player.nodes.chest.pos.y - r.y) ** 2 +
+            (player.nodes.chest.pos.z - r.z) ** 2;
+
+          const hitRadius = 0.65 + r.size;
+          if (distSq < hitRadius * hitRadius) {
+            // Launch climber into full 3D ragdoll tumble!
+            player.triggerRagdollImpact(
+              r.vx * 1.6 + (player.x - r.x) * 6,
+              4.0,
+              r.vz * 1.6 + (player.z - r.z) * 6
+            );
+            sfx.playBoneHit();
+            createDust(r.x, r.y, r.z, 14);
+            r.destroy();
+            rocks.splice(i, 1);
+            continue;
+          }
+
+          if (r.y < abyssY - 8) {
+            r.destroy();
+            rocks.splice(i, 1);
+          }
+        }
+
+        // Cull old geometry far below the rising abyss
+        for (let i = platforms.length - 1; i >= 0; i--) {
+          if (platforms[i].y < abyssY - 12) {
+            platforms[i].destroy();
+            platforms.splice(i, 1);
+          }
+        }
+        for (let i = caveRings.length - 1; i >= 0; i--) {
+          if (caveRings[i].y < abyssY - 16) {
+            scene.remove(caveRings[i].mesh);
+            caveRings.splice(i, 1);
+          }
+        }
+        for (let i = stalactites.length - 1; i >= 0; i--) {
+          if (stalactites[i].y < abyssY - 16) {
+            scene.remove(stalactites[i].mesh);
+            stalactites.splice(i, 1);
+          }
+        }
+
+        updateDust(dt);
+      } else if (gameState === State.MENU) {
+        // Gentle idle camera orbit on menu screen
+        camera.position.x = Math.sin(elapsed * 0.5) * 3.0;
+        camera.position.z = 9.5 + Math.cos(elapsed * 0.5) * 1.5;
+        camera.lookAt(0, 2.2, 0);
+        player.update(dt, 0, 0, false);
+      }
+
+      // Render 3D Scene into low-res target, then apply 1-bit Duo-Tone Bayer Dithering
+      renderer.setRenderTarget(renderTarget);
+      renderer.render(scene, camera);
+
+      renderer.setRenderTarget(null);
+      postMaterial.uniforms.tDiffuse.value = renderTarget.texture;
+      renderer.render(postScene, postCamera);
+    }
+
+    function onWindowResize() {
+      renderer.setSize(container.clientWidth, container.clientHeight, false);
+    }
+    window.addEventListener('resize', onWindowResize);
+
+    resetGame();
+    requestAnimationFrame(animate);
+  </script>
+
+<script>
+(function() {
+    function triggerReveals() {
+        document.querySelectorAll('.reveal').forEach(function(el) {
+            var rect = el.getBoundingClientRect();
+            if (rect.top < window.innerHeight && rect.bottom > 0) {
+                el.classList.add('in', 'is-visible');
+            }
+        });
+    }
+    // Trigger on load and after a short delay to catch timing issues
+    if (document.readyState === 'complete') {
+        triggerReveals();
+        setTimeout(triggerReveals, 100);
+    } else {
+        window.addEventListener('load', function() {
+            triggerReveals();
+            setTimeout(triggerReveals, 100);
+        });
+    }
+})();
+</script></body>
+</html>
